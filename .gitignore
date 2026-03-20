@@ -11,9 +11,9 @@ __pycache__/
 *.log
 
 # Data
-Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/data/raw/
-Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/data/processed/
-Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/data/masks/
+/anchorfill_gi/data/raw/
+/anchorfill_gi/data/processed/
+/anchorfill_gi/data/masks/
 data/splits/
 
 # Outputs
