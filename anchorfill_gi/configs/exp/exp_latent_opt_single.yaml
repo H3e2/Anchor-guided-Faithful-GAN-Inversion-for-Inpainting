@@ -1,0 +1,14 @@
+base: configs/base.yaml
+data: configs/data/ffhq256.yaml
+model: configs/model/stylegan2ada_real.yaml
+train: configs/train/default.yaml
+loss: configs/loss/latent_opt.yaml
+
+project:
+  exp_name: latent_opt_single_ffhq_fixed_mask
+
+debug:
+  enabled: true
+  overfit_batch: true
+  overfit_num_samples: 1
+  fixed_mask: true

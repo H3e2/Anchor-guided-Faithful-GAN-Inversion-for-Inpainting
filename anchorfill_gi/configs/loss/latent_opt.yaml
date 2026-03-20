@@ -6,21 +6,21 @@ loss:
   hole_l1:
     enabled: true
     weight: 1.0
-  
+
   boundary_l1:
     enabled: false
-    weight: 2.0
+    weight: 0.0
 
   perceptual:
-    enabled: false
-    weight: 0.8
+    enabled: true
+    weight: 0.2
     net: alex
 
   identity:
     enabled: false
-    weight: 0.2
+    weight: 0.0
     model_path: null
 
   total_variation:
     enabled: false
-    weight: 0.1
+    weight: 0.0

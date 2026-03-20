@@ -1,0 +1,16 @@
+model:
+  name: stylegan2ada_real
+
+  latent:
+    space: w_plus
+    num_layers: 18
+    latent_dim: 512
+
+  generator:
+    name: stylegan2ada_wrapper
+    repo_root: /root/autodl-tmp/Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/third_party/stylegan2-ada-pytorch
+    checkpoint: /root/autodl-tmp/Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/pretrained/stylegan2/ffhq.pkl
+    image_size: 1024
+    noise_mode: const
+    truncation_psi: 1.0
+    freeze_generator: true
