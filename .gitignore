@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Envs / caches
+.env
+.venv/
+.cache/
+*.log
+
+# Data
+data/raw/
+data/processed/
+data/masks/
+data/splits/
+
+# Outputs
+outputs/
+runs/
+checkpoints/
+samples/
+logs/
+
+# Pretrained weights
+pretrained/
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# Wheels / archives
+*.whl
+*.zip
+*.tar
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+.DS_Store

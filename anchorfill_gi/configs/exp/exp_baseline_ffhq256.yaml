@@ -1,0 +1,8 @@
+base: configs/base.yaml
+data: configs/data/ffhq256.yaml
+model: configs/model/baseline_inversion.yaml
+train: configs/train/default.yaml
+loss: configs/loss/baseline.yaml
+
+project:
+  exp_name: baseline_ffhq256_wplus_irregular_40_60

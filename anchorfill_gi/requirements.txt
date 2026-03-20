@@ -1,0 +1,46 @@
+# =========================
+# Core framework (RTX 5090)
+# =========================
+#--extra-index-url https://download.pytorch.org/whl/cu128
+
+#torch==2.8.0
+#torchvision==0.23.0
+#torchaudio==2.8.0
+
+# =========================
+# Basic scientific stack
+# =========================
+numpy>=1.26,<2.0
+scipy>=1.11,<2.0
+pandas>=2.2,<3.0
+
+# =========================
+# Image processing
+# =========================
+pillow>=10.0,<12.0
+opencv-python-headless>=4.9,<5.0
+imageio>=2.34,<3.0
+imageio-ffmpeg>=0.5,<1.0
+
+# =========================
+# Config / logging / utils
+# =========================
+pyyaml>=6.0,<7.0
+tqdm>=4.66,<5.0
+tensorboard>=2.16,<3.0
+einops>=0.7,<1.0
+matplotlib>=3.8,<4.0
+
+# =========================
+# Metrics / vision tools
+# =========================
+#lpips>=0.1.4,<0.2
+scikit-image>=0.22,<1.0
+scikit-learn>=1.4,<2.0
+#clean-fid>=0.1.35,<1.0
+
+# =========================
+# Build / testing
+# =========================
+ninja>=1.11,<2.0
+pytest>=8.0,<9.0

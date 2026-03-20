@@ -1,0 +1,27 @@
+model:
+  name: baseline_inversion
+
+  latent:
+    space: w_plus
+    num_layers: 18
+    latent_dim: 512
+
+  encoder:
+    name: simple_encoder
+    in_channels: 4          # masked_rgb(3) + mask(1)
+    base_channels: 64
+    max_channels: 512
+    num_down: 5
+    use_spectral_norm: false
+    out_dim: 9216           # 18 * 512
+
+  generator:
+    name: stylegan2_wrapper
+    backend: mock
+    checkpoint: null
+    image_size: 256
+    latent_avg_path: null
+    freeze_generator: true
+    truncation_psi: 1.0
+
+  compose_output: true
