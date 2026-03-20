@@ -152,6 +152,41 @@ class StyleGAN2ADAWrapper(nn.Module):
         w = self.w_avg.unsqueeze(0).repeat(batch_size, 1)                 # [B, w_dim]
         w_plus = self.make_wplus_from_w(w)                                # [B, num_ws, w_dim]
         return w_plus.clone().detach()
+    
+    def get_noise_buffers(self):
+        """
+        中文：
+            获取 StyleGAN synthesis 网络中所有可优化的 noise buffers。
+            返回一个字典，键为 buffer 名称，值为对应 tensor。
+
+        English:
+            Collect all optimizable noise buffers from the synthesis network.
+            Returns a dict: {buffer_name: tensor}.
+        """
+        noise_bufs = {
+            name: buf
+            for name, buf in self.G.synthesis.named_buffers()
+            if "noise_const" in name
+        }
+        return noise_bufs
+
+    def init_noise_buffers(self):
+        """
+        中文：
+            将所有 noise buffers 重置为标准正态分布，
+            并返回可直接参与优化的 noise 字典。
+
+        English:
+            Reset all noise buffers to standard Gaussian noise
+            and return the dict for optimization.
+        """
+        noise_bufs = self.get_noise_buffers()
+
+        for _, buf in noise_bufs.items():
+            buf.data = torch.randn_like(buf)
+            buf.requires_grad = True
+
+        return noise_bufs
 
     def synthesize(self, w_plus: torch.Tensor) -> torch.Tensor:
         """

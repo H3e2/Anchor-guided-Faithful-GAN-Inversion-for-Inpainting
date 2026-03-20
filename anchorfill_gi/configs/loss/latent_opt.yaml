@@ -24,3 +24,7 @@ loss:
   total_variation:
     enabled: false
     weight: 0.0
+
+  noise_regularization:
+    enabled: true
+    weight: 1000
