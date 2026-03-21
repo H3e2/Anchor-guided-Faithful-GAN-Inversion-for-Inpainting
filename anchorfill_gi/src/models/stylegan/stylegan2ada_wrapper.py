@@ -187,6 +187,40 @@ class StyleGAN2ADAWrapper(nn.Module):
             buf.requires_grad = True
 
         return noise_bufs
+    
+    def set_noise_buffers(self, noise_bufs: dict[str, torch.Tensor]):
+        """
+        中文：
+            将外部提供的 noise buffers 写回到当前 StyleGAN synthesis 网络中。
+
+        English:
+            Load external noise buffers into the current StyleGAN synthesis network.
+        """
+        own_noise_bufs = self.get_noise_buffers()
+
+        with torch.no_grad():
+            for name, buf in own_noise_bufs.items():
+                if name in noise_bufs:
+                    src = noise_bufs[name].to(buf.device, dtype=buf.dtype)
+                    if src.shape != buf.shape:
+                        raise ValueError(
+                            f"Noise shape mismatch for {name}: "
+                            f"expected {tuple(buf.shape)}, got {tuple(src.shape)}"
+                        )
+                    buf.copy_(src)
+
+    def clone_noise_buffers(self) -> dict[str, torch.Tensor]:
+        """
+        中文：
+            拷贝当前 generator 内部的 noise buffers，便于后续恢复或复用。
+
+        English:
+            Clone current internal noise buffers for later restore/reuse.
+        """
+        out = {}
+        for name, buf in self.get_noise_buffers().items():
+            out[name] = buf.detach().clone()
+        return out
 
     def synthesize(self, w_plus: torch.Tensor) -> torch.Tensor:
         """
