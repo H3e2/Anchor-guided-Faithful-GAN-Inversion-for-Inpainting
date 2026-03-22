@@ -1,5 +1,5 @@
 model:
-  name: stylegan2ada_real
+  name: mcla_stylegan2ada
 
   latent:
     space: w_plus
@@ -15,8 +15,7 @@ model:
     truncation_psi: 1.0
     freeze_generator: true
 
-  anchor_initializer:
-    encoder_type: ms_residual
+  mcla:
     in_channels: 4
     base_channels: 64
     max_channels: 512
@@ -27,3 +26,5 @@ model:
     layer_splits: [4, 6, 8]
     delta_scale: 0.35
     gate_mode: channel
+    use_edge_branch: true
+    use_freq_branch: true

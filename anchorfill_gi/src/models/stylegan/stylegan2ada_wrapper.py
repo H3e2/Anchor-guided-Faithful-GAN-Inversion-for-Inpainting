@@ -1,15 +1,24 @@
 # -*- coding: utf-8 -*-
 """
 中文：
-    sanity_optimize_latent.py
-    这是对官方 NVlabs stylegan2-ada-pytorch 仓库的轻量包装器。
-    当前阶段我们只做推理/投影相关用途，不训练生成器。
+    stylegan2ada_wrapper.py
+    这是对 NVLabs StyleGAN2-ADA 生成器的轻量封装。
+    这个版本解决了当前训练需要的关键接口：
+        1. 支持加载预训练 pkl
+        2. 支持 forward(w_plus)
+        3. 支持读取 w_avg / z_dim
+        4. 支持 mapping(z)
+        5. 支持 noise buffer 的读取 / 初始化 / 写回
 
 English:
     stylegan2ada_wrapper.py
-    A lightweight wrapper around the official NVlabs stylegan2-ada-pytorch repo.
-    At the current stage, we only use it for inference / projection,
-    and keep the generator frozen.
+    Lightweight wrapper for the NVLabs StyleGAN2-ADA generator.
+    This version provides the key interfaces needed for current training:
+        1. load pretrained pkl
+        2. support forward(w_plus)
+        3. expose w_avg / z_dim
+        4. support mapping(z)
+        5. support reading / initializing / writing noise buffers
 """
 
 from __future__ import annotations
@@ -17,7 +26,7 @@ from __future__ import annotations
 import os
 import sys
 import pickle
-from typing import Optional
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -26,20 +35,10 @@ import torch.nn as nn
 class StyleGAN2ADAWrapper(nn.Module):
     """
     中文：
-        真实 StyleGAN2-ADA 生成器包装器。
-        主要提供：
-            1. 加载官方 .pkl 预训练权重
-            2. mapping(z) -> w
-            3. w -> w+ 扩展
-            4. synthesis(w+) -> image
+        StyleGAN2-ADA 生成器封装类。
 
     English:
-        Wrapper for the real StyleGAN2-ADA generator.
-        Main functionalities:
-            1. load official pretrained .pkl
-            2. mapping(z) -> w
-            3. expand w into w+
-            4. synthesis(w+) -> image
+        Wrapper class for the StyleGAN2-ADA generator.
     """
 
     def __init__(
@@ -53,115 +52,152 @@ class StyleGAN2ADAWrapper(nn.Module):
     ):
         super().__init__()
 
-        self.repo_root = repo_root
-        self.checkpoint = checkpoint
+        self.repo_root = str(repo_root)
+        self.checkpoint = str(checkpoint)
         self.freeze_generator = freeze_generator
         self.noise_mode = noise_mode
         self.truncation_psi = truncation_psi
-        self.device_name = device
+        self.device_str = device
+        self.device = torch.device(device)
 
-        # 动态加入官方 repo 路径
-        # Dynamically append the official repo path.
-        if repo_root not in sys.path:
-            sys.path.insert(0, repo_root)
+        self._setup_stylegan2ada_imports()
+        self.G = self._load_generator().to(self.device)
 
+        if self.freeze_generator:
+            for p in self.G.parameters():
+                p.requires_grad = False
+            self.G.eval()
+
+    def _setup_stylegan2ada_imports(self):
+        """
+        中文：
+            将 StyleGAN2-ADA repo 加入 import 路径。
+
+        English:
+            Add the StyleGAN2-ADA repo to Python import paths.
+        """
+        repo_root = Path(self.repo_root)
+        if not repo_root.exists():
+            raise FileNotFoundError(f"StyleGAN2-ADA repo not found: {repo_root}")
+
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+
+    def _load_generator(self):
+        """
+        中文：
+            从 pkl 文件中加载预训练生成器 G_ema。
+
+        English:
+            Load the pretrained generator G_ema from a pkl file.
+        """
         try:
-            import legacy  # type: ignore
+            import dnnlib
+            import legacy
         except Exception as e:
             raise ImportError(
-                f"Failed to import official stylegan2-ada-pytorch repo from: {repo_root}\n"
-                f"Please make sure the repo is cloned correctly.\n"
+                f"Failed to import StyleGAN2-ADA modules from repo_root={self.repo_root}. "
                 f"Original error: {repr(e)}"
             )
 
-        if not os.path.isfile(checkpoint):
-            raise FileNotFoundError(f"StyleGAN checkpoint not found: {checkpoint}")
+        if not os.path.isfile(self.checkpoint):
+            raise FileNotFoundError(f"StyleGAN2-ADA checkpoint not found: {self.checkpoint}")
 
-        # 读取官方 pkl
-        # Load official .pkl checkpoint.
-        with open(checkpoint, "rb") as f:
-            network_dict = legacy.load_network_pkl(f)
+        with open(self.checkpoint, "rb") as f:
+            network_pkl = pickle.load(f)
 
-        # 官方 projector.py 一般使用 G_ema
-        # Official projector.py typically uses G_ema.
-        self.G = network_dict["G_ema"].to(device)
-
-        if freeze_generator:
-            for p in self.G.parameters():
-                p.requires_grad = False
-
-        self.z_dim = self.G.z_dim
-        self.w_dim = self.G.w_dim
-        self.num_ws = self.G.num_ws
-        self.img_resolution = self.G.img_resolution
-        self.img_channels = self.G.img_channels
-
-        # 保存 w_avg，后面初始化 W+ 时会用到
-        # Save w_avg for later W+ initialization.
-        if hasattr(self.G.mapping, "w_avg") and self.G.mapping.w_avg is not None:
-            self.register_buffer("w_avg", self.G.mapping.w_avg.detach().clone())
+        if "G_ema" in network_pkl:
+            G = network_pkl["G_ema"]
         else:
-            self.register_buffer("w_avg", torch.zeros(self.w_dim, device=device))
+            # fallback 兼容一些非标准 pkl / fallback for non-standard pkls
+            G = network_pkl
 
-    @torch.no_grad()
+        return G
+
+    # =========================================================
+    # Properties
+    # =========================================================
+    @property
+    def z_dim(self) -> int:
+        """
+        中文：
+            返回输入随机向量 z 的维度。
+
+        English:
+            Return the dimension of input latent z.
+        """
+        return int(self.G.z_dim)
+
+    @property
+    def w_avg(self) -> torch.Tensor:
+        """
+        中文：
+            返回 mapping 网络中的平均 style 向量，形状 [w_dim]
+
+        English:
+            Return the average style vector from the mapping network, shape [w_dim]
+        """
+        return self.G.mapping.w_avg.detach()
+
+    @property
+    def num_ws(self) -> int:
+        """
+        中文：
+            返回 synthesis 网络使用的 style 层数。
+
+        English:
+            Return the number of style inputs used by the synthesis network.
+        """
+        return int(self.G.num_ws)
+
+    @property
+    def w_dim(self) -> int:
+        """
+        中文：
+            返回每个 style 向量的维度。
+
+        English:
+            Return the dimensionality of each style vector.
+        """
+        return int(self.G.w_dim)
+
+    # =========================================================
+    # Latent interfaces
+    # =========================================================
     def mapping(self, z: torch.Tensor) -> torch.Tensor:
         """
         中文：
-            将 z 映射到 w。
-            输入:
-                z: [B, z_dim]
-            输出:
-                w: [B, num_ws, w_dim]
+            将 z 映射到 W+，输出形状 [B, num_ws, w_dim]
 
         English:
-            Map z into w.
-            Input:
-                z: [B, z_dim]
-            Output:
-                w: [B, num_ws, w_dim]
+            Map z into W+, output shape [B, num_ws, w_dim]
         """
-        c = None  # FFHQ 是 unconditional，条件输入为空
-        ws = self.G.mapping(z, c, truncation_psi=self.truncation_psi, truncation_cutoff=None)
+        z = z.to(self.device)
+        ws = self.G.mapping(z, None, truncation_psi=self.truncation_psi)
         return ws
-
-    def make_wplus_from_w(self, w: torch.Tensor) -> torch.Tensor:
-        """
-        中文：
-            如果输入是 [B, w_dim]，则扩展成 [B, num_ws, w_dim]。
-            如果输入已经是 W+ 形状，则原样返回。
-
-        English:
-            Expand [B, w_dim] into [B, num_ws, w_dim].
-            If already in W+ shape, return as is.
-        """
-        if w.dim() == 2:
-            return w.unsqueeze(1).repeat(1, self.num_ws, 1)
-        elif w.dim() == 3:
-            return w
-        else:
-            raise ValueError(f"Unsupported latent shape: {tuple(w.shape)}")
 
     def init_wplus(self, batch_size: int = 1) -> torch.Tensor:
         """
         中文：
-            用 w_avg 初始化一个可优化的 W+ latent。
+            用 w_avg 初始化 W+，输出 [B, num_ws, w_dim]
 
         English:
-            Initialize an optimizable W+ latent from w_avg.
+            Initialize W+ with w_avg, output [B, num_ws, w_dim]
         """
-        w = self.w_avg.unsqueeze(0).repeat(batch_size, 1)                 # [B, w_dim]
-        w_plus = self.make_wplus_from_w(w)                                # [B, num_ws, w_dim]
-        return w_plus.clone().detach()
-    
+        w_avg = self.w_avg.to(self.device)  # [w_dim]
+        w_plus = w_avg.unsqueeze(0).unsqueeze(0).repeat(batch_size, self.num_ws, 1)
+        return w_plus
+
+    # =========================================================
+    # Noise interfaces
+    # =========================================================
     def get_noise_buffers(self):
         """
         中文：
-            获取 StyleGAN synthesis 网络中所有可优化的 noise buffers。
-            返回一个字典，键为 buffer 名称，值为对应 tensor。
+            获取 synthesis 网络中所有 noise_const buffer。
 
         English:
-            Collect all optimizable noise buffers from the synthesis network.
-            Returns a dict: {buffer_name: tensor}.
+            Collect all noise_const buffers in the synthesis network.
         """
         noise_bufs = {
             name: buf
@@ -173,28 +209,24 @@ class StyleGAN2ADAWrapper(nn.Module):
     def init_noise_buffers(self):
         """
         中文：
-            将所有 noise buffers 重置为标准正态分布，
-            并返回可直接参与优化的 noise 字典。
+            将所有 noise buffer 初始化为标准高斯噪声，并开启梯度。
 
         English:
-            Reset all noise buffers to standard Gaussian noise
-            and return the dict for optimization.
+            Initialize all noise buffers with standard Gaussian noise and enable gradients.
         """
         noise_bufs = self.get_noise_buffers()
-
         for _, buf in noise_bufs.items():
             buf.data = torch.randn_like(buf)
             buf.requires_grad = True
-
         return noise_bufs
-    
+
     def set_noise_buffers(self, noise_bufs: dict[str, torch.Tensor]):
         """
         中文：
-            将外部提供的 noise buffers 写回到当前 StyleGAN synthesis 网络中。
+            将外部 noise buffer 写回当前 synthesis 网络。
 
         English:
-            Load external noise buffers into the current StyleGAN synthesis network.
+            Write external noise buffers back into the current synthesis network.
         """
         own_noise_bufs = self.get_noise_buffers()
 
@@ -209,38 +241,49 @@ class StyleGAN2ADAWrapper(nn.Module):
                         )
                     buf.copy_(src)
 
-    def clone_noise_buffers(self) -> dict[str, torch.Tensor]:
+    def clone_noise_buffers(self):
         """
         中文：
-            拷贝当前 generator 内部的 noise buffers，便于后续恢复或复用。
+            克隆当前 noise buffers。
 
         English:
-            Clone current internal noise buffers for later restore/reuse.
+            Clone current noise buffers.
         """
         out = {}
         for name, buf in self.get_noise_buffers().items():
             out[name] = buf.detach().clone()
         return out
 
+    # =========================================================
+    # Synthesis / forward
+    # =========================================================
     def synthesize(self, w_plus: torch.Tensor) -> torch.Tensor:
         """
         中文：
-            使用 synthesis 网络从 W+ latent 生成图像。
-            输出范围通常为 [-1, 1]。
+            从 W+ 渲染图像。
 
         English:
-            Use the synthesis network to generate images from W+ latent.
-            Output is typically in [-1, 1].
+            Render image from W+.
         """
-        img = self.G.synthesis(w_plus, noise_mode=self.noise_mode)
+        w_plus = w_plus.to(self.device)
+
+        # 如果传进来的是 [B, w_dim]，自动扩展到 [B, num_ws, w_dim]
+        # If input is [B, w_dim], automatically expand it to [B, num_ws, w_dim].
+        if w_plus.dim() == 2:
+            w_plus = w_plus.unsqueeze(1).repeat(1, self.num_ws, 1)
+
+        if w_plus.dim() != 3:
+            raise ValueError(f"Expected w_plus shape [B, num_ws, w_dim], got {tuple(w_plus.shape)}")
+
+        img = self.G.synthesis(w_plus, noise_mode=self.noise_mode, force_fp32=True)
         return img
 
     def forward(self, w_plus: torch.Tensor) -> torch.Tensor:
         """
         中文：
-            前向别名，等价于 synthesize。
+            前向等价于 synthesize。
 
         English:
-            Forward alias for synthesize.
+            Forward is equivalent to synthesize.
         """
         return self.synthesize(w_plus)

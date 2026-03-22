@@ -1,0 +1,25 @@
+loss:
+  image_known_l1:
+    enabled: true
+    weight: 0.5
+
+  image_hole_l1:
+    enabled: true
+    weight: 1.0
+
+  perceptual:
+    enabled: false
+    weight: 0.0
+    net: alex
+
+  manifold_reg:
+    enabled: true
+    weight: 0.1
+
+  edge_hole_l1:
+    enabled: true
+    weight: 0.2
+
+  freq_hole_l1:
+    enabled: true
+    weight: 0.2

@@ -1,24 +1,10 @@
 train:
-  epochs: 200
-  start_epoch: 0
-
   optimizer:
     name: adam
-    lr: 0.0001
-    betas: [0.9, 0.999]
+    lr: 1.0e-4
     weight_decay: 0.0
 
   scheduler:
-    name: cosine
-    warmup_epochs: 0
-    min_lr: 0.000001
-
-  grad_clip:
-    enabled: true
-    max_norm: 1.0
-
-  amp: true
-  resume: null
-
-  compile:
     enabled: false
+
+  max_epochs: 20

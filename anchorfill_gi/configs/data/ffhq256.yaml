@@ -1,35 +1,28 @@
-dataset:
-  name: ffhq
+data:
+  dataset_name: ffhq256
   image_size: 256
-  channels: 3
 
-  train_image_dir: /root/autodl-tmp/Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/data/processed/ffhq256/train/images
-  val_image_dir: /root/autodl-tmp/Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/data/processed/ffhq256/val/images
-  test_image_dir: /root/autodl-tmp/Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi/data/processed/ffhq256/test/images
+  train:
+    image_dir: data/processed/ffhq256/train/images
+    batch_size: 4
+    shuffle: true
 
-  train_list: null
-  val_list: null
-  test_list: null
+  val:
+    image_dir: data/processed/ffhq256/val/images
+    batch_size: 2
+    shuffle: false
 
-mask:
-  type: irregular
-  hole_range: [0.4, 0.6]
-  max_strokes: 10
-  max_brush_width: 40
-  min_brush_width: 12
-  max_vertex: 20
-  boundary_band_width: 7
+  test:
+    image_dir: data/processed/ffhq256/test/images
+    batch_size: 2
+    shuffle: false
 
-loader:
-  batch_size: 1
-  val_batch_size: 1
-  test_batch_size: 1
-  num_workers: 0
-  pin_memory: true
-  persistent_workers: false
-  shuffle: false
-  drop_last: false
+  loader:
+    num_workers: 4
+    pin_memory: true
+    drop_last: false
 
-normalize:
-  mean: [0.5, 0.5, 0.5]
-  std: [0.5, 0.5, 0.5]
+  mask:
+    type: irregular
+    hole_range: [0.1, 0.5]
+    fixed_mask: false

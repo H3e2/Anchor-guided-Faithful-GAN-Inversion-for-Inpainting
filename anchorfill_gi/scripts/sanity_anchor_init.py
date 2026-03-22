@@ -194,8 +194,10 @@ def main():
         feat_dim=anchor_cfg["feat_dim"],
         num_ws=anchor_cfg["num_ws"],
         w_dim=anchor_cfg["w_dim"],
+        layer_splits=anchor_cfg.get("layer_splits", [4, 6, 8]),
         delta_scale=anchor_cfg["delta_scale"],
         gate_mode=anchor_cfg["gate_mode"],
+        encoder_type=anchor_cfg.get("encoder_type", "ms_residual"),
         w_avg=G.w_avg,
     ).to(device)
 

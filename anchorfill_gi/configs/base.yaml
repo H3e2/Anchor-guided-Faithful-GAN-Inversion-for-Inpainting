@@ -1,7 +1,6 @@
 project:
-  name: anchorfill_gi
-  exp_name: default_exp
-  seed: 42
+  seed: 3407
+  output_root: outputs
 
 paths:
   project_root: /root/autodl-tmp/Anchor-guided-Faithful-GAN-Inversion-for-Inpainting/anchorfill_gi
@@ -11,19 +10,23 @@ paths:
 
 system:
   device: cuda
-  num_gpus: 1
-  amp: true
   cudnn_benchmark: true
 
 logging:
-  log_interval: 10
-  val_interval: 10
-  save_interval: 10
-  save_images: true
-  image_save_num: 4
+  print_freq: 20
+  save_image_freq: 10
+  val_freq: 1
+  save_val_image_num: 4
+  save__test_image_num: 8
 
 debug:
-  enabled: true
-  overfit_batch: true
-  overfit_num_samples: 1
-  fixed_mask: true
+  enabled: false
+  overfit_batch: false
+  overfit_num_samples: 0
+  fixed_mask: false
+
+checkpoint:
+  monitor: val_hole_l1
+  mode: min
+  save_best: true
+  save_latest: true

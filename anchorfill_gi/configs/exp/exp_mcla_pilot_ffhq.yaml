@@ -1,0 +1,21 @@
+base: configs/base.yaml
+data: configs/data/ffhq256.yaml
+model: configs/model/mcla_stylegan2ada.yaml
+train: configs/train/default.yaml
+loss: configs/loss/mcla_train.yaml
+
+project:
+  seed: 3407
+  output_root: outputs
+  exp_name: mcla_pilot_ffhq
+
+pilot:
+  manifold_samples: 2048
+  manifold_batch_size: 16
+  max_epochs: 20
+
+debug:
+  enabled: false
+  overfit_batch: false
+  overfit_num_samples: 0
+  fixed_mask: false
